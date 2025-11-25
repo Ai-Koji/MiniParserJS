@@ -1,8 +1,9 @@
 
-CREATE TABLE wb_tariffs_history (
+CREATE TABLE wb_tariffs_boxes_history (
     id SERIAL PRIMARY KEY,
     warehouse_name VARCHAR(255) NOT NULL,
     geo_name VARCHAR(255) NOT NULL,
+    tariff_date DATE NOT NULL,
     box_delivery_base DECIMAL(10,2),
     box_delivery_liter DECIMAL(10,2),
     box_storage_base DECIMAL(10,2),
