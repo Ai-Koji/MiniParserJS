@@ -34,7 +34,6 @@ async function save_data(warehouseList, date) {
   for (i = 0; i < warehouseList.length; i++) {
     existed_records = await DATABASE('wb_tariffs_boxes_history').select().where('tariff_date', date).andWhere('warehouse_name', warehouseList[i].warehouseName);
 
-    warehouseList[i].geoName = "hello"
     if (existed_records.length != 0) {
       if (existed_records.length > 1)
         console.log("WARNING: same date and name record in the db")
@@ -63,20 +62,35 @@ async function save_data(warehouseList, date) {
       });
   }
 }
+function delay(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
 
 async function main() {
-  try {
-    let res = await get_boxes("2025-11-24");
-    let warehouseList = res.response.data.warehouseList
+  console.log("starting script");
 
-    // console.log(warehouseList);
-    save_data(warehouseList, "2025-11-24")
+  while (true) {
+    try {
+      now = new Date()
+      
+      dateNow = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
 
-    // console.log(":", res.response.data.warehouseList);
-  
-  } catch (error) {
-    console.error("Failed to get boxes:", error);
+      let res = await get_boxes(dateNow);
+      let warehouseList = res.response.data.warehouseList
+      try {
+        save_data(warehouseList, dateNow)
+      } catch (error) {
+        console.log(`ERROR:`, error);
+      }
+
+      db_res = await DATABASE('wb_tariffs_boxes_history').select();    
+    } catch (error) {
+      console.error("ERROR:", error);
+    }
+    console.log("waiting a hour")
+    await delay(60*1000); 
   }
+  console.log("end of script")
 }
 
 main();
