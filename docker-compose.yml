@@ -1,21 +1,36 @@
-# version: '3.9'
+version: '3.9'
 services:
   postgres:
     image: postgres:16
     container_name: postgres
     environment:
-      POSTGRES_USER: postgres # user
-      POSTGRES_PASSWORD: postgres # password
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
       POSTGRES_DB: postgres_db
       PGDATA: /var/lib/postgresql/data/pgdata
     ports:
       - "5434:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data/pgdata:Z
-      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+      - postgres_data:/var/lib/postgresql/data
     restart: unless-stopped
     networks:
       - wbEndpointApp
+
+  app:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    container_name: wb_app
+    depends_on:
+      - postgres
+    environment:
+      - NODE_ENV=production
+    working_dir: /app
+    command: node src/main.js
+    restart: unless-stopped
+    networks:
+      - wbEndpointApp
+
 volumes:
   postgres_data:
     driver: local
@@ -23,6 +38,7 @@ volumes:
       type: none
       o: bind
       device: ./pgdata
+
 networks:
   wbEndpointApp:
     driver: bridge
