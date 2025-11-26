@@ -88,7 +88,7 @@ async function main() {
       console.error("ERROR:", error);
     }
     console.log("waiting a hour")
-    await delay(60*1000); 
+    await delay(60*60*1000);
   }
   console.log("end of script")
 }
