@@ -2,6 +2,87 @@ const knex = require('knex');
 const knexfile = require('./knexfile');
 const config = require('./config')
 
+
+const path = require('node:path'); 
+const  process = require('node:process');
+const  {authenticate} = require('@google-cloud/local-auth');
+const  {google} = require('googleapis');
+
+const SCOPES = ['https://www.googleapis.com/auth/spreadsheets'];
+const CREDENTIALS_PATH = path.join(process.cwd(), 'credentials.json');
+
+async function writeDataSheet(auth) {
+  console.log("start writing to google tables");
+
+  const sheets = google.sheets({ version: 'v4', auth: auth });
+  const spreadsheetId = config.SHEET_ID;
+  
+  try {
+    const dbData = await DATABASE('wb_tariffs_boxes_history')
+      .select(
+        'warehouse_name',
+        'geo_name', 
+        'box_delivery_base',
+        'box_delivery_liter',
+        'box_storage_base',
+        'box_storage_liter',
+        'box_delivery_coef_expr',
+        'tariff_date'
+      )
+      .where('tariff_date', '>=', new Date(new Date().setDate(new Date().getDate() - 1))) // данные за последние сутки
+      .orderBy('box_delivery_coef_expr', 'asc'); // сортировка по возрастанию коэффициента
+
+    if (!dbData || dbData.length === 0) {
+      console.log('No data found in database');
+      return;
+    }
+
+    const values = [
+      // Заголовки столбцов
+      [
+        'Склад', 
+        'Регион', 
+        'Тариф доставки (база)', 
+        'Тариф доставки (литр)', 
+        'Тариф хранения (база)', 
+        'Тариф хранения (литр)', 
+        'Коэффициент доставки',
+        'Дата тарифа'
+      ],
+      // Данные из БД
+      ...dbData.map(row => [
+        row.warehouse_name,
+        row.geo_name,
+        row.box_delivery_base,
+        row.box_delivery_liter,
+        row.box_storage_base,
+        row.box_storage_liter,
+        row.box_delivery_coef_expr,
+        new Date(row.tariff_date).toLocaleDateString('ru-RU')
+      ])
+    ];
+
+    await sheets.spreadsheets.values.clear({
+      spreadsheetId,
+      range: config.SHEET_NAME + '!A:H',
+    });
+
+    const request = {
+      spreadsheetId,
+      range: config.SHEET_NAME + '!A1',
+      valueInputOption: 'RAW',
+      resource: { values },
+    };
+
+    const response = await sheets.spreadsheets.values.update(request);
+    console.log('Данные успешно записаны в Google Sheets:', response.data.updatedRows + ' строк обновлено');
+    
+  } catch (error) {
+    console.error('Ошибка при записи в Google Sheets:', error);
+    throw error;
+  }
+}
+
 const DATABASE = knex(knexfile.production);
 
 async function get_boxes(date) {
@@ -39,7 +120,7 @@ async function save_data(warehouseList, date) {
         console.log("WARNING: same date and name record in the db")
 
       await DATABASE('wb_tariffs_boxes_history').update({
-        geo_name: warehouseList[i].geoName,
+          geo_name: warehouseList[i].geoName,
         box_delivery_base: warehouseList[i].box_delivery_base,
         box_delivery_liter: warehouseList[i].box_delivery_liter,
         box_storage_base: warehouseList[i].box_storage_base,
@@ -50,18 +131,18 @@ async function save_data(warehouseList, date) {
     }
     else
       await DATABASE('wb_tariffs_boxes_history').insert({
-        warehouse_name: warehouseList[i].warehouseName,
-        geo_name: warehouseList[i].geoName,
-        tariff_date: date,
+          warehouse_name: warehouseList[i].warehouseName,
+          geo_name: warehouseList[i].geoName,
+          tariff_date: date,
         box_delivery_base: warehouseList[i].box_delivery_base,
         box_delivery_liter: warehouseList[i].box_delivery_liter,
         box_storage_base: warehouseList[i].box_storage_base,
         box_storage_liter: warehouseList[i].box_storage_liter,
         box_delivery_coef_expr: warehouseList[i].box_delivery_coef_expr,
         box_storage_coef_expr: warehouseList[i].box_storage_coef_expr
-      });
+        });
+    }
   }
-}
 function delay(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
