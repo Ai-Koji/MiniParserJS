@@ -107,42 +107,56 @@ async function get_boxes(date) {
     throw error;
   }
 }
-
 async function save_data(warehouseList, date) {  
   date = new Date(date);
-  console.log("saving records to wb")
+  console.log("saving records to wb");
 
-  for (i = 0; i < warehouseList.length; i++) {
-    existed_records = await DATABASE('wb_tariffs_boxes_history').select().where('tariff_date', date).andWhere('warehouse_name', warehouseList[i].warehouseName);
+  for (let i = 0; i < warehouseList.length; i++) {
+    const parseNumeric = (value) => {
+      if (!value || value === '-') return null;
+      return parseFloat(value.replace(',', '.'));
+    };
 
-    if (existed_records.length != 0) {
-      if (existed_records.length > 1)
-        console.log("WARNING: same date and name record in the db")
+    const existed_records = await DATABASE('wb_tariffs_boxes_history')
+      .select()
+      .where('tariff_date', date)
+      .andWhere('warehouse_name', warehouseList[i].warehouseName);
 
-      await DATABASE('wb_tariffs_boxes_history').update({
+    if (existed_records.length !== 0) {
+      if (existed_records.length > 1) {
+        console.log("WARNING: same date and name record in the db");
+      }
+
+      await DATABASE('wb_tariffs_boxes_history')
+        .update({
           geo_name: warehouseList[i].geoName,
-        box_delivery_base: warehouseList[i].box_delivery_base,
-        box_delivery_liter: warehouseList[i].box_delivery_liter,
-        box_storage_base: warehouseList[i].box_storage_base,
-        box_storage_liter: warehouseList[i].box_storage_liter,
-        box_delivery_coef_expr: warehouseList[i].box_delivery_coef_expr,
-        box_storage_coef_expr: warehouseList[i].box_storage_coef_expr
-      }).where('tariff_date', date).andWhere('warehouse_name', 'Цифровой склад');
-    }
-    else
-      await DATABASE('wb_tariffs_boxes_history').insert({
+          box_delivery_base: parseNumeric(warehouseList[i].boxDeliveryBase),
+          box_delivery_liter: parseNumeric(warehouseList[i].boxDeliveryLiter), 
+          box_storage_base: parseNumeric(warehouseList[i].boxStorageBase), 
+          box_storage_liter: parseNumeric(warehouseList[i].boxStorageLiter), 
+          box_delivery_coef_expr: warehouseList[i].boxDeliveryCoefExpr, 
+          box_storage_coef_expr: warehouseList[i].boxStorageCoefExpr 
+        })
+        .where('tariff_date', date)
+        .andWhere('warehouse_name', warehouseList[i].warehouseName); // ИСПРАВЛЕНО: было 'Цифровой склад'
+    } else {
+      // ИСПРАВЛЕНО: используем преобразование чисел
+      await DATABASE('wb_tariffs_boxes_history')
+        .insert({
           warehouse_name: warehouseList[i].warehouseName,
           geo_name: warehouseList[i].geoName,
           tariff_date: date,
-        box_delivery_base: warehouseList[i].box_delivery_base,
-        box_delivery_liter: warehouseList[i].box_delivery_liter,
-        box_storage_base: warehouseList[i].box_storage_base,
-        box_storage_liter: warehouseList[i].box_storage_liter,
-        box_delivery_coef_expr: warehouseList[i].box_delivery_coef_expr,
-        box_storage_coef_expr: warehouseList[i].box_storage_coef_expr
+          box_delivery_base: parseNumeric(warehouseList[i].boxDeliveryBase),
+          box_delivery_liter: parseNumeric(warehouseList[i].boxDeliveryLiter), 
+          box_storage_base: parseNumeric(warehouseList[i].boxStorageBase), 
+          box_storage_liter: parseNumeric(warehouseList[i].boxStorageLiter), 
+          box_delivery_coef_expr: warehouseList[i].boxDeliveryCoefExpr, 
+          box_storage_coef_expr: warehouseList[i].boxStorageCoefExpr
         });
     }
   }
+}
+
 function delay(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
@@ -150,6 +164,13 @@ function delay(ms) {
 async function main() {
   console.log("starting script");
 
+  // Authenticate with Google and get an authorized client.
+  const auth = await authenticate({
+    scopes: SCOPES,
+    keyfilePath: CREDENTIALS_PATH,
+  });
+  
+  await writeDataSheet(auth);
   while (true) {
     try {
       now = new Date()
@@ -160,6 +181,7 @@ async function main() {
       let warehouseList = res.response.data.warehouseList
       try {
         save_data(warehouseList, dateNow)
+        await writeDataSheet(auth);
       } catch (error) {
         console.log(`ERROR:`, error);
       }
