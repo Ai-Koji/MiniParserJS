@@ -9,5 +9,8 @@ CREATE TABLE wb_tariffs_boxes_history (
     box_storage_base DECIMAL(10,2),
     box_storage_liter DECIMAL(10,2),
     box_delivery_coef_expr VARCHAR(50),
-    box_storage_coef_expr VARCHAR(50)
+    box_storage_coef_expr VARCHAR(50),
+    box_delivery_marketplace_base DECIMAL(10,2),
+    box_delivery_marketplace_coef_expr VARCHAR(50),
+    box_delivery_marketplace_liter DECIMAL(10,2)
 );

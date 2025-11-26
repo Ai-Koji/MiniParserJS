@@ -21,12 +21,15 @@ async function writeDataSheet(auth) {
     const dbData = await DATABASE('wb_tariffs_boxes_history')
       .select(
         'warehouse_name',
-        'geo_name', 
+        'geo_name',
         'box_delivery_base',
         'box_delivery_liter',
         'box_storage_base',
         'box_storage_liter',
         'box_delivery_coef_expr',
+        'box_delivery_marketplace_base',
+        'box_delivery_marketplace_coef_expr',
+        'box_delivery_marketplace_liter',
         'tariff_date'
       )
       .where('tariff_date', '>=', new Date(new Date().setDate(new Date().getDate() - 1))) // данные за последние сутки
@@ -40,13 +43,16 @@ async function writeDataSheet(auth) {
     const values = [
       // Заголовки столбцов
       [
-        'Склад', 
-        'Регион', 
-        'Тариф доставки (база)', 
-        'Тариф доставки (литр)', 
-        'Тариф хранения (база)', 
-        'Тариф хранения (литр)', 
+        'Склад',
+        'Регион',
+        'Тариф доставки (база)',
+        'Тариф доставки (литр)',
+        'Тариф хранения (база)',
+        'Тариф хранения (литр)',
         'Коэффициент доставки',
+        'Тариф доставки маркетплейс (база)',
+        'Коэффициент доставки маркетплейс',
+        'Тариф доставки маркетплейс (литр)',
         'Дата тарифа'
       ],
       // Данные из БД
@@ -58,13 +64,16 @@ async function writeDataSheet(auth) {
         row.box_storage_base,
         row.box_storage_liter,
         row.box_delivery_coef_expr,
+        row.box_delivery_marketplace_base,
+        row.box_delivery_marketplace_coef_expr,
+        row.box_delivery_marketplace_liter,
         new Date(row.tariff_date).toLocaleDateString('ru-RU')
       ])
     ];
 
     await sheets.spreadsheets.values.clear({
       spreadsheetId,
-      range: config.SHEET_NAME + '!A:H',
+      range: config.SHEET_NAME + '!A:K',
     });
 
     const request = {
@@ -131,11 +140,14 @@ async function save_data(warehouseList, date) {
         .update({
           geo_name: warehouseList[i].geoName,
           box_delivery_base: parseNumeric(warehouseList[i].boxDeliveryBase),
-          box_delivery_liter: parseNumeric(warehouseList[i].boxDeliveryLiter), 
-          box_storage_base: parseNumeric(warehouseList[i].boxStorageBase), 
-          box_storage_liter: parseNumeric(warehouseList[i].boxStorageLiter), 
-          box_delivery_coef_expr: warehouseList[i].boxDeliveryCoefExpr, 
-          box_storage_coef_expr: warehouseList[i].boxStorageCoefExpr 
+          box_delivery_liter: parseNumeric(warehouseList[i].boxDeliveryLiter),
+          box_storage_base: parseNumeric(warehouseList[i].boxStorageBase),
+          box_storage_liter: parseNumeric(warehouseList[i].boxStorageLiter),
+          box_delivery_coef_expr: warehouseList[i].boxDeliveryCoefExpr,
+          box_storage_coef_expr: warehouseList[i].boxStorageCoefExpr,
+          box_delivery_marketplace_base: parseNumeric(warehouseList[i].boxDeliveryMarketplaceBase),
+          box_delivery_marketplace_coef_expr: warehouseList[i].boxDeliveryMarketplaceCoefExpr,
+          box_delivery_marketplace_liter: parseNumeric(warehouseList[i].boxDeliveryMarketplaceLiter)
         })
         .where('tariff_date', date)
         .andWhere('warehouse_name', warehouseList[i].warehouseName); // ИСПРАВЛЕНО: было 'Цифровой склад'
@@ -147,11 +159,14 @@ async function save_data(warehouseList, date) {
           geo_name: warehouseList[i].geoName,
           tariff_date: date,
           box_delivery_base: parseNumeric(warehouseList[i].boxDeliveryBase),
-          box_delivery_liter: parseNumeric(warehouseList[i].boxDeliveryLiter), 
-          box_storage_base: parseNumeric(warehouseList[i].boxStorageBase), 
-          box_storage_liter: parseNumeric(warehouseList[i].boxStorageLiter), 
-          box_delivery_coef_expr: warehouseList[i].boxDeliveryCoefExpr, 
-          box_storage_coef_expr: warehouseList[i].boxStorageCoefExpr
+          box_delivery_liter: parseNumeric(warehouseList[i].boxDeliveryLiter),
+          box_storage_base: parseNumeric(warehouseList[i].boxStorageBase),
+          box_storage_liter: parseNumeric(warehouseList[i].boxStorageLiter),
+          box_delivery_coef_expr: warehouseList[i].boxDeliveryCoefExpr,
+          box_storage_coef_expr: warehouseList[i].boxStorageCoefExpr,
+          box_delivery_marketplace_base: parseNumeric(warehouseList[i].boxDeliveryMarketplaceBase),
+          box_delivery_marketplace_coef_expr: warehouseList[i].boxDeliveryMarketplaceCoefExpr,
+          box_delivery_marketplace_liter: parseNumeric(warehouseList[i].boxDeliveryMarketplaceLiter)
         });
     }
   }
